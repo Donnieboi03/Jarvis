@@ -1,0 +1,93 @@
+import speech_recognition as sr
+import pyttsx3
+import openai as ai
+
+## SETUP
+# api_key
+ai.api_key = "APIKEY";
+
+# Initialize the speech recognition engine
+engine = pyttsx3.init()
+# Talk Speed
+engine.setProperty('rate', 160)
+# Talk Pitch
+# engine.setProperty('pitch', ...)
+
+## FUNCTIONS
+# Records From Microphone and Converts it To Text
+stop_speech: bool = False
+def record_text():
+    r = sr.Recognizer()
+    with sr.Microphone() as source2:
+        r.adjust_for_ambient_noise(source2, duration = 0.2)
+        audio2 = r.listen(source2)
+        engine.stop()
+    try:
+        text: str = r.recognize_google(audio2)
+        #Messages_Stack.append(text)
+        print("Jarvis thinks you said " + text, "\n")
+        return text
+            
+    except sr.RequestError as e:
+        print("Could not request results: {0}".format(e), "\n")
+        return ""
+        
+    except sr.UnknownValueError:
+        print("unknown error occurred\n")
+        return ""
+
+# Message stack
+Responses: list = [{'role': 'user', 'content': "Role Play as My Tutor"}]
+# Text is Sent to ChatGpt and ChatGpt Responds
+def send_to_chatGPT(message, model = "gpt-3.5-turbo"):
+    try:
+        Responses.append(message)
+        response = ai.chat.completions.create(
+            messages = Responses,
+            model = model,
+            max_tokens = 500,
+            temperature = 0.5
+        )
+        response = response.choices[0].message.content
+        return response
+    except ai.OpenAIError as error:
+        print("Error: ", error)
+
+# Allows Computer To Response
+def SpeakText(command):
+    try:
+        # Add Text to Console
+        print(command, "\n")
+        
+        # parse command for Code
+        backtic_start: int = command.find("```")
+        if backtic_start != -1:
+            backtic_end: int = command.find("```", backtic_start + 1)
+            # Remove the Code within
+            command = command[:backtic_start] + command[backtic_end + 3:]
+
+        # Speak To Text
+        engine.say(command)
+       # Messages_Stack.pop(0)
+        engine.runAndWait()
+    except Exception as error:
+        print("Error", error)
+
+## MAIN
+print("Listening...\n")
+    
+# Forever Loop
+while(1):
+    # Text is What The AI Hears
+    text = record_text()
+
+    if text.find("stop") != -1:
+        print("Program Stopped")
+        SpeakText("Shutting Down...")
+        break
+    if text != "":
+        # ChatGpt Responds
+        response = send_to_chatGPT({'role': 'user', 'content': text})
+        # Response is Spoken
+        SpeakText(response)
+        print("Listening...\n")
